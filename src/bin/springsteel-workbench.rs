@@ -1,15 +1,14 @@
 use futures::stream::StreamExt as _;
 use futures::stream_select;
 use gdk::Display;
-use gtk::prelude::{
-    ApplicationExt as _, ApplicationExtManual as _, BoxExt as _, ButtonExt as _, GtkWindowExt as _,
-};
+use gio::prelude::{ApplicationExt as _, ApplicationExtManual as _};
+use gtk::prelude::{ButtonExt as _, GtkWindowExt as _, WidgetExt as _};
 use gtk::{
-    Align, Application, ApplicationWindow, Box, Button, CssProvider, Label, Orientation,
+    Align, Application, ApplicationWindow, Button, ConstraintGuide, CssProvider, Label,
     StyleContext,
 };
+use springsteel::{add_constraint, glib_run_future, ConstraintView, ImpulseStream};
 use std::future::ready;
-use springsteel::{ImpulseStream, glib_run_future};
 
 const APP_ID: &str = "com.dridus.springsteel-workbench";
 
@@ -51,11 +50,11 @@ fn build_ui(app: &Application) {
         .build();
 
     let increments = ImpulseStream::new();
-    let increment = Button::builder().label("+").build();
+    let increment = Button::with_label("+");
     increment.connect_clicked(increments.triggerer());
 
     let decrements = ImpulseStream::new();
-    let decrement = Button::builder().label("-").build();
+    let decrement = Button::with_label("-");
     decrement.connect_clicked(decrements.triggerer());
 
     let deltas = stream_select!(increments.map(|()| 1), decrements.map(|()| -1));
@@ -72,24 +71,53 @@ fn build_ui(app: &Application) {
 
     glib_run_future(display_count);
 
-    let controls = Box::builder()
-        .orientation(Orientation::Vertical)
-        .homogeneous(true)
-        .spacing(8)
-        .build();
-    controls.append(&increment);
-    controls.append(&decrement);
+    let content = ConstraintView::new();
+    content.set_widget_name("content");
+    let content_layout = content.layout();
 
-    let content = Box::builder()
-        .orientation(Orientation::Horizontal)
-        .margin_top(20)
-        .margin_bottom(20)
-        .margin_start(20)
-        .margin_end(20)
-        .spacing(12)
-        .build();
-    content.append(&controls);
-    content.append(&display);
+    display.set_parent(&content);
+    increment.set_parent(&content);
+    decrement.set_parent(&content);
+
+    let content_body = ConstraintGuide::new();
+    let controls_display_spacer = ConstraintGuide::new();
+    content_layout.add_guide(&content_body);
+    content_layout.add_guide(&controls_display_spacer);
+
+    add_constraint!(content_layout, content_body.top == top + 20.0);
+    add_constraint!(content_layout, content_body.left == left + 20.0);
+    add_constraint!(content_layout, right == content_body.right + 20.0);
+    add_constraint!(content_layout, bottom == content_body.bottom + 20.0);
+
+    add_constraint!(content_layout, increment.top == content_body.top);
+    add_constraint!(content_layout, increment.left == content_body.left);
+    add_constraint!(
+        content_layout,
+        increment.right == controls_display_spacer.left
+    );
+
+    add_constraint!(content_layout, increment.width == increment.height);
+
+    add_constraint!(content_layout, decrement.top == increment.bottom + 10.0);
+
+    add_constraint!(content_layout, decrement.bottom == content_body.bottom);
+    add_constraint!(content_layout, decrement.left == content_body.left);
+    add_constraint!(
+        content_layout,
+        decrement.right == controls_display_spacer.left
+    );
+
+    add_constraint!(content_layout, increment.height == decrement.height);
+
+    add_constraint!(content_layout, controls_display_spacer.width == 10.0);
+
+    add_constraint!(content_layout, display.top == content_body.top);
+    add_constraint!(
+        content_layout,
+        display.left == controls_display_spacer.right
+    );
+    add_constraint!(content_layout, display.right == content_body.end);
+    add_constraint!(content_layout, display.bottom == content_body.bottom);
 
     let window = ApplicationWindow::builder()
         .application(app)

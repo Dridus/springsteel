@@ -26,6 +26,8 @@ struct ImpulseStreamInner {
 /// ```
 ///    # use gtk::Button;
 ///    # use gtk::prelude::ButtonExt as _;
+///    # use springsteel::impulse_stream::ImpulseStream;
+///    # gtk::init().expect("gtk::init");
 ///    #
 ///    let events = ImpulseStream::new();
 ///    let button = Button::builder().label("Trigger").build();
